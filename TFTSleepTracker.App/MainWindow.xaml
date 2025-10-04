@@ -5,8 +5,146 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TFTSleepTracker.App"
         mc:Ignorable="d"
-        Title="TFT Sleep Tracker" Height="450" Width="800">
+        Title="TFT Sleep Tracker" Height="500" Width="900"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <!-- TFT Color Palette -->
+        <SolidColorBrush x:Key="TftDarkBlue" Color="#0A1428"/>
+        <SolidColorBrush x:Key="TftMidBlue" Color="#162C4C"/>
+        <SolidColorBrush x:Key="TftAccentBlue" Color="#1E5F8C"/>
+        <SolidColorBrush x:Key="TftGold" Color="#C89B3C"/>
+        <SolidColorBrush x:Key="TftLightGold" Color="#F0E6D2"/>
+        <SolidColorBrush x:Key="TftTextWhite" Color="#E8E8E8"/>
+        
+        <!-- Card Style -->
+        <Style x:Key="TftCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource TftMidBlue}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource TftGold}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Margin" Value="10"/>
+        </Style>
+        
+        <!-- Header Text Style -->
+        <Style x:Key="TftHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TftGold}"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        
+        <!-- Body Text Style -->
+        <Style x:Key="TftText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TftTextWhite}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        
+        <!-- Value Text Style -->
+        <Style x:Key="TftValue" TargetType="TextBlock" BasedOn="{StaticResource TftText}">
+            <Setter Property="FontSize" Value="32"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource TftLightGold}"/>
+        </Style>
+    </Window.Resources>
+    
     <Grid>
-
+        <!-- Gradient Background -->
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Color="#0A1428" Offset="0"/>
+                <GradientStop Color="#162C4C" Offset="0.5"/>
+                <GradientStop Color="#0A1428" Offset="1"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+        
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Title Bar -->
+        <Border Grid.Row="0" Background="{StaticResource TftDarkBlue}" Padding="20,15">
+            <StackPanel>
+                <TextBlock Style="{StaticResource TftHeader}" FontSize="28">
+                    TFT Sleep Tracker
+                </TextBlock>
+                <TextBlock Style="{StaticResource TftText}" Opacity="0.8">
+                    Track your sleep patterns while you're away from keyboard
+                </TextBlock>
+            </StackPanel>
+        </Border>
+        
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20">
+                
+                <!-- Status Card -->
+                <Border Style="{StaticResource TftCard}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource TftHeader}">Status</TextBlock>
+                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                            <Run Text="Tracking: "/>
+                            <Run Text="Active" Foreground="#4CAF50" FontWeight="Bold"/>
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                            <Run Text="Last Check: "/>
+                            <Run Text="Just now" FontWeight="SemiBold"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Today's Stats Card -->
+                <Border Style="{StaticResource TftCard}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource TftHeader}">Today's Stats</TextBlock>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Sleep Time</TextBlock>
+                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Active Time</TextBlock>
+                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Inactive Time</TextBlock>
+                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Settings Card -->
+                <Border Style="{StaticResource TftCard}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource TftHeader}">Settings</TextBlock>
+                        <CheckBox x:Name="AutostartCheckBox" 
+                                  Foreground="{StaticResource TftTextWhite}"
+                                  Margin="0,10,0,10"
+                                  Checked="AutostartCheckBox_Checked"
+                                  Unchecked="AutostartCheckBox_Unchecked">
+                            <TextBlock Style="{StaticResource TftText}">
+                                Start automatically at login
+                            </TextBlock>
+                        </CheckBox>
+                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                            Data is stored in your AppData folder and uploaded daily at 08:05 AM.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>
