@@ -18,6 +18,13 @@ namespace TFTSleepTracker.App
         {
             InitializeComponent();
             InitializeTrayIcon();
+            InitializeSettings();
+        }
+
+        private void InitializeSettings()
+        {
+            // Set autostart checkbox based on current state
+            AutostartCheckBox.IsChecked = AutostartHelper.IsAutostartEnabled();
         }
 
         private void InitializeTrayIcon()
@@ -48,11 +55,28 @@ namespace TFTSleepTracker.App
             Activate();
         }
 
-        private void SendNow()
+        private async void SendNow()
         {
-            // TODO: Implement send now functionality
-            MessageBox.Show("Send Now functionality will be implemented.", "Send Now", 
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                var scheduler = ((App)System.Windows.Application.Current).GetSummaryScheduler();
+                if (scheduler != null)
+                {
+                    await scheduler.SendNowAsync();
+                    MessageBox.Show("Yesterday's summary has been computed and queued for upload.", "Send Now", 
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Scheduler is not initialized.", "Send Now", 
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error processing summary: {ex.Message}", "Send Now", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CheckForUpdates()
@@ -88,6 +112,34 @@ namespace TFTSleepTracker.App
         {
             _notifyIcon?.Dispose();
             base.OnClosed(e);
+        }
+
+        private void AutostartCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AutostartHelper.EnableAutostart();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to enable autostart: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                AutostartCheckBox.IsChecked = false;
+            }
+        }
+
+        private void AutostartCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                AutostartHelper.DisableAutostart();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to disable autostart: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                AutostartCheckBox.IsChecked = true;
+            }
         }
     }
 }

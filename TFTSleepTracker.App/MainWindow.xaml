@@ -129,6 +129,15 @@
                 <Border Style="{StaticResource TftCard}">
                     <StackPanel>
                         <TextBlock Style="{StaticResource TftHeader}">Settings</TextBlock>
+                        <CheckBox x:Name="AutostartCheckBox" 
+                                  Foreground="{StaticResource TftTextWhite}"
+                                  Margin="0,10,0,10"
+                                  Checked="AutostartCheckBox_Checked"
+                                  Unchecked="AutostartCheckBox_Unchecked">
+                            <TextBlock Style="{StaticResource TftText}">
+                                Start automatically at login
+                            </TextBlock>
+                        </CheckBox>
                         <TextBlock Style="{StaticResource TftText}" Margin="0,5">
                             Data is stored in your AppData folder and uploaded daily at 08:05 AM.
                         </TextBlock>
