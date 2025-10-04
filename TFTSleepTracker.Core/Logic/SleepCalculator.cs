@@ -32,7 +32,11 @@ public static class SleepCalculator
             
             foreach (var intersection in nightlyIntersections)
             {
-                var durationMinutes = (int)(intersection.end - intersection.start).TotalMinutes;
+                // Calculate duration in local time (not real time) to handle DST correctly
+                // This ensures we count 9 hours for [23:00, 08:00) regardless of DST transitions
+                var startLocal = DateTime.SpecifyKind(intersection.start.DateTime, DateTimeKind.Unspecified);
+                var endLocal = DateTime.SpecifyKind(intersection.end.DateTime, DateTimeKind.Unspecified);
+                var durationMinutes = (int)(endLocal - startLocal).TotalMinutes;
                 // Add max(0, spanMinutes - threshold)
                 int sleepMinutes = Math.Max(0, durationMinutes - (int)threshold.TotalMinutes);
                 totalSleepMinutes += sleepMinutes;
@@ -98,7 +102,7 @@ public static class SleepCalculator
     }
 
     /// <summary>
-    /// Intersects a time span with the nightly window, handling midnight crossing
+    /// Intersects a time span with the nightly window, handling midnight crossing and DST
     /// </summary>
     private static List<(DateTimeOffset start, DateTimeOffset end)> IntersectWithNightlyWindow(
         DateTimeOffset spanStart,
@@ -107,43 +111,43 @@ public static class SleepCalculator
     {
         var intersections = new List<(DateTimeOffset start, DateTimeOffset end)>();
         
+        // Work with local DateTime for window intersection to handle DST correctly
+        // Use DateTime with Unspecified kind to avoid offset conflicts
+        var spanStartLocal = DateTime.SpecifyKind(spanStart.DateTime, DateTimeKind.Unspecified);
+        var spanEndLocal = DateTime.SpecifyKind(spanEnd.DateTime, DateTimeKind.Unspecified);
+        
         // Iterate through each day in the span
-        var currentDate = spanStart.Date.AddDays(-1); // Start one day before to catch night windows that started the previous day
-        var endDate = spanEnd.Date.AddDays(1); // Go one day after to be safe
+        var currentDate = spanStartLocal.Date.AddDays(-1);
+        var endDate = spanEndLocal.Date.AddDays(1);
         
         while (currentDate <= endDate)
         {
-            // Determine the nightly window boundaries for this date
-            DateTimeOffset windowStart, windowEnd;
+            // Determine the nightly window boundaries for this date in local time
+            DateTime windowStartLocal, windowEndLocal;
             
             if (nightly.CrossesMidnight)
             {
                 // Window like 23:00 to 08:00
-                // The window starts on currentDate at Start time and ends on next day at End time
-                windowStart = new DateTimeOffset(
-                    currentDate.Add(nightly.Start.ToTimeSpan()), 
-                    spanStart.Offset);
-                windowEnd = new DateTimeOffset(
-                    currentDate.AddDays(1).Add(nightly.End.ToTimeSpan()), 
-                    spanStart.Offset);
+                windowStartLocal = currentDate.Add(nightly.Start.ToTimeSpan());
+                windowEndLocal = currentDate.AddDays(1).Add(nightly.End.ToTimeSpan());
             }
             else
             {
                 // Window like 09:00 to 17:00 (same day)
-                windowStart = new DateTimeOffset(
-                    currentDate.Add(nightly.Start.ToTimeSpan()), 
-                    spanStart.Offset);
-                windowEnd = new DateTimeOffset(
-                    currentDate.Add(nightly.End.ToTimeSpan()), 
-                    spanStart.Offset);
+                windowStartLocal = currentDate.Add(nightly.Start.ToTimeSpan());
+                windowEndLocal = currentDate.Add(nightly.End.ToTimeSpan());
             }
             
-            // Calculate intersection
-            var intersectionStart = Max(spanStart, windowStart);
-            var intersectionEnd = Min(spanEnd, windowEnd);
+            // Calculate intersection in local time
+            var intersectionStartLocal = Max(spanStartLocal, windowStartLocal);
+            var intersectionEndLocal = Min(spanEndLocal, windowEndLocal);
             
-            if (intersectionStart < intersectionEnd)
+            if (intersectionStartLocal < intersectionEndLocal)
             {
+                // Convert back to DateTimeOffset, preserving the appropriate offsets
+                var intersectionStart = ConvertToDateTimeOffset(intersectionStartLocal, spanStart, spanEnd);
+                var intersectionEnd = ConvertToDateTimeOffset(intersectionEndLocal, spanStart, spanEnd);
+                
                 intersections.Add((intersectionStart, intersectionEnd));
             }
             
@@ -152,6 +156,70 @@ public static class SleepCalculator
         
         return intersections;
     }
+
+    /// <summary>
+    /// Converts a local DateTime to DateTimeOffset, determining the appropriate offset
+    /// based on where it falls relative to the span
+    /// </summary>
+    private static DateTimeOffset ConvertToDateTimeOffset(
+        DateTime localDateTime,
+        DateTimeOffset spanStart,
+        DateTimeOffset spanEnd)
+    {
+        var spanStartLocal = DateTime.SpecifyKind(spanStart.DateTime, DateTimeKind.Unspecified);
+        var spanEndLocal = DateTime.SpecifyKind(spanEnd.DateTime, DateTimeKind.Unspecified);
+        
+        // If the local time matches the span start's local time, use its offset
+        if (localDateTime == spanStartLocal)
+        {
+            return spanStart;
+        }
+        
+        // If the local time matches the span end's local time, use its offset
+        if (localDateTime == spanEndLocal)
+        {
+            return spanEnd;
+        }
+        
+        // If before span start, use span start's offset
+        if (localDateTime < spanStartLocal)
+        {
+            return new DateTimeOffset(localDateTime, spanStart.Offset);
+        }
+        
+        // If after span end, use span end's offset
+        if (localDateTime > spanEndLocal)
+        {
+            return new DateTimeOffset(localDateTime, spanEnd.Offset);
+        }
+        
+        // Within the span - if offsets differ (DST transition), determine which to use
+        if (spanStart.Offset != spanEnd.Offset)
+        {
+            // During a DST transition, use the offset that's appropriate for the time
+            // Try both offsets and see which one makes sense
+            var withStartOffset = new DateTimeOffset(localDateTime, spanStart.Offset);
+            var withEndOffset = new DateTimeOffset(localDateTime, spanEnd.Offset);
+            
+            // Use the offset that keeps us within the span's UTC range
+            if (withStartOffset.UtcDateTime >= spanStart.UtcDateTime && 
+                withStartOffset.UtcDateTime <= spanEnd.UtcDateTime)
+            {
+                return withStartOffset;
+            }
+            else if (withEndOffset.UtcDateTime >= spanStart.UtcDateTime && 
+                     withEndOffset.UtcDateTime <= spanEnd.UtcDateTime)
+            {
+                return withEndOffset;
+            }
+        }
+        
+        // Default: use span start's offset
+        return new DateTimeOffset(localDateTime, spanStart.Offset);
+    }
+
+    private static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
+    private static DateTime Min(DateTime a, DateTime b) => a < b ? a : b;
 
     private static DateTimeOffset Max(DateTimeOffset a, DateTimeOffset b) => a > b ? a : b;
     private static DateTimeOffset Min(DateTimeOffset a, DateTimeOffset b) => a < b ? a : b;
