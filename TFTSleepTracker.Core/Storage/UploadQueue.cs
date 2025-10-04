@@ -11,6 +11,7 @@ public class QueuedUpload
     public string Date { get; set; } = ""; // ISO 8601 date (yyyy-MM-dd)
     public int SleepMinutes { get; set; }
     public DateTimeOffset ComputedAt { get; set; }
+    public string? Message { get; set; } // Optional special message
 }
 
 /// <summary>

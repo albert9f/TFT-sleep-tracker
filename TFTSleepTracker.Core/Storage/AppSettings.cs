@@ -26,6 +26,11 @@ public class AppSettings
     /// Last update check timestamp (ISO 8601)
     /// </summary>
     public DateTimeOffset? LastUpdateCheck { get; set; }
+
+    /// <summary>
+    /// Last date when "no sleep" message was sent (yyyy-MM-dd)
+    /// </summary>
+    public string? LastNoSleepMessageDate { get; set; }
 }
 
 /// <summary>

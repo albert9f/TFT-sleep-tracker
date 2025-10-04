@@ -136,12 +136,54 @@ namespace TFTSleepTracker.App
                 if (_uploadQueue != null && _settingsStore != null)
                 {
                     var settings = await _settingsStore.LoadAsync();
+                    
+                    // Check if we should send the "no sleep" message
+                    string? message = null;
+                    if (e.HasData && e.Summary?.TotalSleepMinutes == 0)
+                    {
+                        // Zero sleep detected with data present
+                        // Check if we should send the message (once per week)
+                        bool shouldSendMessage = false;
+                        
+                        if (string.IsNullOrEmpty(settings.LastNoSleepMessageDate))
+                        {
+                            // Never sent before
+                            shouldSendMessage = true;
+                        }
+                        else
+                        {
+                            // Check if at least 7 days have passed
+                            if (DateOnly.TryParse(settings.LastNoSleepMessageDate, out var lastMessageDate))
+                            {
+                                var daysSinceLastMessage = e.Date.DayNumber - lastMessageDate.DayNumber;
+                                if (daysSinceLastMessage >= 7)
+                                {
+                                    shouldSendMessage = true;
+                                }
+                            }
+                            else
+                            {
+                                // Invalid date, reset
+                                shouldSendMessage = true;
+                            }
+                        }
+                        
+                        if (shouldSendMessage)
+                        {
+                            message = "looks like ethan didnt sleep tonight";
+                            // Update the last message date
+                            settings.LastNoSleepMessageDate = e.Date.ToString("yyyy-MM-dd");
+                            await _settingsStore.SaveAsync(settings);
+                        }
+                    }
+                    
                     var upload = new QueuedUpload
                     {
                         DeviceId = settings.DeviceId,
                         Date = e.Date.ToString("yyyy-MM-dd"),
                         SleepMinutes = e.Summary?.TotalSleepMinutes ?? 0,
-                        ComputedAt = DateTimeOffset.Now
+                        ComputedAt = DateTimeOffset.Now,
+                        Message = message
                     };
 
                     await _uploadQueue.EnqueueAsync(upload);

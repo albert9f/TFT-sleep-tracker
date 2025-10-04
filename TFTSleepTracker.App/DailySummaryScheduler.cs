@@ -134,7 +134,8 @@ namespace TFTSleepTracker.App
                 SummaryReady?.Invoke(this, new SummaryReadyEventArgs
                 {
                     Summary = summary,
-                    Date = yesterday
+                    Date = yesterday,
+                    HasData = true
                 });
             }
             catch (Exception ex)
@@ -155,5 +156,6 @@ namespace TFTSleepTracker.App
     {
         public DailySummary? Summary { get; set; }
         public DateOnly Date { get; set; }
+        public bool HasData { get; set; } // Indicates if there was data to process
     }
 }
