@@ -25,8 +25,39 @@ jobs:
     - name: Build solution
       run: dotnet build --configuration Release --no-restore
       
-    - name: Run tests
+    - name: Run unit tests
       run: dotnet test --configuration Release --no-build --verbosity normal
+      
+    - name: Setup Python for E2E tests
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Install Python dependencies
+      run: pip install requests
+      
+    - name: E2E Test - Mock bot endpoint (optional)
+      shell: pwsh
+      run: |
+        # Note: This is a placeholder for E2E testing
+        # In a real scenario, you would:
+        # 1. Start a mock Discord bot server (e.g., using Python FastAPI)
+        # 2. Run the send_fake.py script with various payloads
+        # 3. Verify the bot received and processed the data correctly
+        
+        Write-Host "E2E Test Placeholder - Testing send_fake.py script"
+        Write-Host "Testing script help:"
+        python tools/send_fake.py --help
+        
+        Write-Host "`nE2E tests would simulate:"
+        Write-Host "  - Sending sleep data with multiple dates"
+        Write-Host "  - Testing with various minute values (0, 480, 1440)"
+        Write-Host "  - Verifying retry logic with network failures"
+        Write-Host "  - Validating payload format and authentication"
+        Write-Host "`nTo run full E2E tests:"
+        Write-Host "  1. Deploy the Discord bot to a test environment"
+        Write-Host "  2. Set BOT_HOST and TOKEN environment variables"
+        Write-Host "  3. Run: python tools/send_fake.py --token \$TOKEN --device-id test-device --date 2024-01-15 --minutes 480"
       
     - name: Upload build artifacts
       if: success()
