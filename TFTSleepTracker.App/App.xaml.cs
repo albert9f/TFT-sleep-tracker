@@ -1,8 +1,11 @@
 using System;
-using System.Windows;
+using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using TFTSleepTracker.Core.Storage;
 using TFTSleepTracker.Core.Logic;
+using TFTSleepTracker.Core.Net;
 
 namespace TFTSleepTracker.App
 {
@@ -14,6 +17,9 @@ namespace TFTSleepTracker.App
         private static Mutex? _instanceMutex;
         private ActivityTracker? _activityTracker;
         private DailySummaryScheduler? _summaryScheduler;
+        private UploadQueueProcessor? _uploadProcessor;
+        private AppSettingsStore? _settingsStore;
+        private UploadQueue? _uploadQueue;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -45,7 +51,7 @@ namespace TFTSleepTracker.App
             }
 
             // Initialize activity tracker
-            var dataDirectory = System.IO.Path.Combine(
+            var dataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "TFTSleepTracker");
             var inactivityThreshold = TimeSpan.FromMinutes(5);
@@ -58,13 +64,68 @@ namespace TFTSleepTracker.App
             _summaryScheduler = new DailySummaryScheduler(dataDirectory, inactivityThreshold, nightlyWindow);
             _summaryScheduler.SummaryReady += OnSummaryReady;
             _summaryScheduler.Start();
+
+            // Initialize upload queue and processor
+            InitializeUploadSystemAsync().ConfigureAwait(false);
         }
 
-        private void OnSummaryReady(object? sender, SummaryReadyEventArgs e)
+        private async Task InitializeUploadSystemAsync()
         {
-            // TODO: Implement upload logic here
-            // For now, just log that a summary is ready
-            System.Diagnostics.Debug.WriteLine($"Summary ready for {e.Date}: {e.Summary?.TotalSleepMinutes} minutes");
+            try
+            {
+                // Use ProgramData for shared settings and queue
+                var programDataDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "TFTSleepTracker");
+                
+                var queueDirectory = Path.Combine(programDataDirectory, "queue");
+
+                // Load settings
+                _settingsStore = new AppSettingsStore(programDataDirectory);
+                var settings = await _settingsStore.LoadAsync();
+
+                // Initialize upload queue
+                _uploadQueue = new UploadQueue(queueDirectory);
+
+                // Initialize upload service and processor
+                if (!string.IsNullOrEmpty(settings.Token))
+                {
+                    var uploadService = new UploadService(settings.BotHost, settings.Token);
+                    _uploadProcessor = new UploadQueueProcessor(_uploadQueue, uploadService);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing upload system: {ex.Message}");
+            }
+        }
+
+        private async void OnSummaryReady(object? sender, SummaryReadyEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"Summary ready for {e.Date}: {e.Summary?.TotalSleepMinutes} minutes");
+
+                // Enqueue upload if system is initialized
+                if (_uploadQueue != null && _settingsStore != null)
+                {
+                    var settings = await _settingsStore.LoadAsync();
+                    var upload = new QueuedUpload
+                    {
+                        DeviceId = settings.DeviceId,
+                        Date = e.Date.ToString("yyyy-MM-dd"),
+                        SleepMinutes = e.Summary?.TotalSleepMinutes ?? 0,
+                        ComputedAt = DateTimeOffset.Now
+                    };
+
+                    await _uploadQueue.EnqueueAsync(upload);
+                    System.Diagnostics.Debug.WriteLine($"Enqueued upload for {e.Date}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error enqueuing upload: {ex.Message}");
+            }
         }
 
         protected override void OnExit(ExitEventArgs e)
@@ -73,6 +134,7 @@ namespace TFTSleepTracker.App
             _activityTracker?.Dispose();
             _summaryScheduler?.Stop();
             _summaryScheduler?.Dispose();
+            _uploadProcessor?.Dispose();
             _instanceMutex?.ReleaseMutex();
             _instanceMutex?.Dispose();
             base.OnExit(e);
