@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using TFTSleepTracker.Core.Logic;
 
 namespace TFTSleepTracker.Core.Storage;
@@ -10,12 +11,14 @@ public class ActivityTracker : IDisposable
     private readonly CsvLogger _csvLogger;
     private readonly SummaryStore _summaryStore;
     private readonly LastInputMonitor _inputMonitor;
+    private readonly SystemEventsHandler _systemEventsHandler;
     private readonly TimeSpan _inactivityThreshold;
     private readonly LocalTimeWindow _nightlyWindow;
 
     private DateTimeOffset? _lastCheckTime;
     private bool _wasActiveLastCheck;
     private double _currentInactivityMinutes;
+    private bool _isMonitoring;
 
     public ActivityTracker(
         string dataDirectory,
@@ -32,6 +35,13 @@ public class ActivityTracker : IDisposable
 
         _inputMonitor = new LastInputMonitor();
         _inputMonitor.InactivityCheck += OnInactivityCheck;
+
+        // Setup system events handler
+        _systemEventsHandler = new SystemEventsHandler();
+        _systemEventsHandler.SystemResumed += OnSystemResumed;
+        _systemEventsHandler.SystemSuspended += OnSystemSuspended;
+        _systemEventsHandler.TimeChanged += OnTimeChanged;
+        _systemEventsHandler.SessionSwitch += OnSessionSwitch;
     }
 
     /// <summary>
@@ -40,6 +50,7 @@ public class ActivityTracker : IDisposable
     public void Start()
     {
         _inputMonitor.StartMonitoring();
+        _isMonitoring = true;
     }
 
     /// <summary>
@@ -48,6 +59,63 @@ public class ActivityTracker : IDisposable
     public void Stop()
     {
         _inputMonitor.StopMonitoring();
+        _isMonitoring = false;
+    }
+
+    private void OnSystemResumed(object? sender, EventArgs e)
+    {
+        // Reset tracking state after resume to avoid corrupted spans
+        LogEvent("System resumed - resetting tracking state", EventLogEntryType.Warning);
+        _lastCheckTime = null;
+        _wasActiveLastCheck = false;
+        _currentInactivityMinutes = 0;
+    }
+
+    private void OnSystemSuspended(object? sender, EventArgs e)
+    {
+        // Pause monitoring during suspension
+        LogEvent("System suspending - pausing monitoring", EventLogEntryType.Information);
+    }
+
+    private void OnTimeChanged(object? sender, EventArgs e)
+    {
+        // Reset tracking state after time change (DST, manual adjustment)
+        LogEvent("Time changed detected - resetting tracking state", EventLogEntryType.Warning);
+        _lastCheckTime = null;
+    }
+
+    private void OnSessionSwitch(object? sender, EventArgs e)
+    {
+        // Reset inactivity counter on session reconnect (e.g., RDP)
+        LogEvent("Session switch detected - resetting tracking state", EventLogEntryType.Information);
+        _lastCheckTime = null;
+    }
+
+    private void LogEvent(string message, EventLogEntryType type)
+    {
+        try
+        {
+            const string source = "TFTSleepTracker";
+            const string logName = "Application";
+
+            if (!System.Diagnostics.EventLog.SourceExists(source))
+            {
+                try
+                {
+                    System.Diagnostics.EventLog.CreateEventSource(source, logName);
+                }
+                catch
+                {
+                    return;
+                }
+            }
+
+            System.Diagnostics.EventLog.WriteEntry(source, message, type);
+        }
+        catch
+        {
+            // Silently fail - logging should not crash the app
+        }
     }
 
     private async void OnInactivityCheck(object? sender, InactivityEventArgs e)
@@ -144,5 +212,6 @@ public class ActivityTracker : IDisposable
     {
         _inputMonitor.InactivityCheck -= OnInactivityCheck;
         _inputMonitor.Dispose();
+        _systemEventsHandler.Dispose();
     }
 }
