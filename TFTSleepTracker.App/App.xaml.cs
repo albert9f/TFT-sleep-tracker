@@ -6,6 +6,7 @@ using System.Windows;
 using TFTSleepTracker.Core.Storage;
 using TFTSleepTracker.Core.Logic;
 using TFTSleepTracker.Core.Net;
+using TFTSleepTracker.Core.Update;
 
 namespace TFTSleepTracker.App
 {
@@ -20,6 +21,7 @@ namespace TFTSleepTracker.App
         private UploadQueueProcessor? _uploadProcessor;
         private AppSettingsStore? _settingsStore;
         private UploadQueue? _uploadQueue;
+        private UpdateService? _updateService;
 
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -67,6 +69,30 @@ namespace TFTSleepTracker.App
 
             // Initialize upload queue and processor
             InitializeUploadSystemAsync().ConfigureAwait(false);
+
+            // Check for updates in background (if due)
+            CheckForUpdatesInBackgroundAsync().ConfigureAwait(false);
+        }
+
+        private async Task CheckForUpdatesInBackgroundAsync()
+        {
+            try
+            {
+                // Use ProgramData for shared settings
+                var programDataDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "TFTSleepTracker");
+                
+                var settingsStore = new AppSettingsStore(programDataDirectory);
+                _updateService = new UpdateService(settingsStore);
+
+                // Check for updates if due (non-blocking)
+                await _updateService.CheckAndDownloadUpdatesAsync(forceCheck: false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking for updates: {ex.Message}");
+            }
         }
 
         private async Task InitializeUploadSystemAsync()
@@ -135,6 +161,7 @@ namespace TFTSleepTracker.App
             _summaryScheduler?.Stop();
             _summaryScheduler?.Dispose();
             _uploadProcessor?.Dispose();
+            _updateService?.Dispose();
             _instanceMutex?.ReleaseMutex();
             _instanceMutex?.Dispose();
             base.OnExit(e);
@@ -143,6 +170,11 @@ namespace TFTSleepTracker.App
         public DailySummaryScheduler? GetSummaryScheduler()
         {
             return _summaryScheduler;
+        }
+
+        public UpdateService? GetUpdateService()
+        {
+            return _updateService;
         }
     }
 }

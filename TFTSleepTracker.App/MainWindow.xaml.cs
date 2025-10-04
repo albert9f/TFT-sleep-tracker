@@ -79,11 +79,47 @@ namespace TFTSleepTracker.App
             }
         }
 
-        private void CheckForUpdates()
+        private async void CheckForUpdates()
         {
-            // TODO: Implement update checking
-            MessageBox.Show("Check for Updates functionality will be implemented.", "Check for Updates", 
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                var updateService = ((App)System.Windows.Application.Current).GetUpdateService();
+                if (updateService == null)
+                {
+                    MessageBox.Show("Update service is not initialized.", "Check for Updates", 
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                MessageBox.Show("Checking for updates...", "Check for Updates", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                var updatesFound = await updateService.CheckAndDownloadUpdatesAsync(forceCheck: true);
+
+                if (updatesFound)
+                {
+                    var result = MessageBox.Show(
+                        "Updates have been downloaded and will be applied on next restart.\n\nRestart now?",
+                        "Updates Available",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        updateService.RestartApp();
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Your application is up to date.", "Check for Updates", 
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error checking for updates: {ex.Message}", "Check for Updates", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void QuitApplication()
