@@ -62,10 +62,13 @@ public class SummaryStore
         if (summary == null)
             throw new ArgumentNullException(nameof(summary));
 
-        var summaries = await GetAllSummariesAsync();
-        summaries[summary.Date] = summary;
+        await FileRetryHelper.RetryAsync(async () =>
+        {
+            var summaries = await GetAllSummariesAsync();
+            summaries[summary.Date] = summary;
 
-        await SaveSummariesAsync(summaries);
+            await SaveSummariesAsync(summaries);
+        }, "Summary update");
     }
 
     /// <summary>

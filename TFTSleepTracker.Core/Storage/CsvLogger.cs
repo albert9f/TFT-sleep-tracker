@@ -24,31 +24,34 @@ public class CsvLogger
         if (dataPoint == null)
             throw new ArgumentNullException(nameof(dataPoint));
 
-        var date = DateOnly.FromDateTime(dataPoint.Timestamp.LocalDateTime.Date);
-        var csvFilePath = GetCsvFilePath(date);
-        
-        // Check if file needs header
-        bool needsHeader = !File.Exists(csvFilePath);
-
-        // Build CSV line
-        var sb = new StringBuilder();
-        if (needsHeader)
+        await FileRetryHelper.RetryAsync(async () =>
         {
-            sb.AppendLine("timestamp,is_active,inactivity_minutes,sleep_minutes_increment");
-        }
+            var date = DateOnly.FromDateTime(dataPoint.Timestamp.LocalDateTime.Date);
+            var csvFilePath = GetCsvFilePath(date);
+            
+            // Check if file needs header
+            bool needsHeader = !File.Exists(csvFilePath);
 
-        // Format: ISO 8601 timestamp, boolean, double, integer
-        sb.Append(dataPoint.Timestamp.ToString("o")); // ISO 8601 format
-        sb.Append(',');
-        sb.Append(dataPoint.IsActive ? "true" : "false");
-        sb.Append(',');
-        sb.Append(dataPoint.InactivityMinutes.ToString("F2", CultureInfo.InvariantCulture));
-        sb.Append(',');
-        sb.Append(dataPoint.SleepMinutesIncrement);
-        sb.AppendLine();
+            // Build CSV line
+            var sb = new StringBuilder();
+            if (needsHeader)
+            {
+                sb.AppendLine("timestamp,is_active,inactivity_minutes,sleep_minutes_increment");
+            }
 
-        // Atomic write using temp file
-        await WriteAtomicallyAsync(csvFilePath, sb.ToString(), append: true);
+            // Format: ISO 8601 timestamp, boolean, double, integer
+            sb.Append(dataPoint.Timestamp.ToString("o")); // ISO 8601 format
+            sb.Append(',');
+            sb.Append(dataPoint.IsActive ? "true" : "false");
+            sb.Append(',');
+            sb.Append(dataPoint.InactivityMinutes.ToString("F2", CultureInfo.InvariantCulture));
+            sb.Append(',');
+            sb.Append(dataPoint.SleepMinutesIncrement);
+            sb.AppendLine();
+
+            // Atomic write using temp file
+            await WriteAtomicallyAsync(csvFilePath, sb.ToString(), append: true);
+        }, "CSV append");
     }
 
     /// <summary>
