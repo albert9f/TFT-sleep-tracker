@@ -28,10 +28,13 @@ jobs:
       
       - name: Install Squirrel CLI
         run: |
-          dotnet tool install --global Clowd.Squirrel --version 2.11.1 2>&1 | Out-Null
+          dotnet tool install --global Clowd.Squirrel --version 2.11.1
           if ($LASTEXITCODE -ne 0) {
-            dotnet tool update --global Clowd.Squirrel --version 2.11.1 2>&1 | Out-Null
+            Write-Host "Tool might already be installed, trying update..."
+            dotnet tool update --global Clowd.Squirrel --version 2.11.1
           }
+          # Verify installation
+          squirrel --version
         shell: pwsh
       
       - name: Determine version
