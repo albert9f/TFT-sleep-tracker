@@ -9,8 +9,10 @@ TFT Sleep Tracker automatically monitors when you're inactive on your computer b
 **Here's the magic:**
 - 🔒 **Privacy First**: We only track *when* you're inactive - never *what* you're doing. No keystrokes, no screen content, nothing personal.
 - ⏱️ **Smart Detection**: The app waits for 60 continuous minutes of inactivity before counting it as "sleep" to avoid false positives.
-- 📊 **Daily Summaries**: Each morning at 8:05 AM, you get a tally of your sleep time from the previous night.
-- ☁️ **Optional Sync**: Share your stats with friends via our Discord bot integration (totally optional!).
+- 📊 **Smart Sleep Calculation**: Automatically figures out when you were actually asleep based on keyboard/mouse activity during nighttime hours (11 PM – 8 AM).
+- 🔒 **100% Local & Private**: All your data stays on your computer in simple CSV files—no cloud storage, no accounts.
+- ☁️ **Automatic Discord Sync**: Sends your complete sleep stats to Discord every hour on the hour for easy tracking and sharing with friends.
+- 🚀 **Background Operation**: Runs silently in your system tray. No nagging windows or pop-ups.
 
 ## 🛡️ Privacy & Data
 
@@ -29,8 +31,10 @@ TFT Sleep Tracker automatically monitors when you're inactive on your computer b
 
 **Where is my data stored?**
 - **Locally on your PC**: All detailed activity logs are stored in CSV files at `%ProgramData%\TFTSleepTracker\data`
-- **Discord Bot (Optional)**: Only your daily total (e.g., "480 minutes of sleep") is sent to the bot, along with a date and anonymous device ID
-- **Never in the cloud**: We don't store your data on external servers (except via the optional Discord bot)
+- **Hourly Sync**: The app automatically sends completed sleep data to Discord every hour
+- **Complete Data Only**: Only fully completed days are sent (excludes today's incomplete session)
+- **Discord Bot**: Your daily total sleep minutes are sent with a date and anonymous device ID
+- **Never in the cloud**: Your raw activity data stays local; only daily summaries are shared via Discord
 
 ## 💾 Installation
 
@@ -82,7 +86,7 @@ Right-click the tray icon to access these options:
 Opens the main window where you can see your current stats and settings.
 
 #### 📤 Send Now
-Manually trigger a summary upload to the Discord bot. This calculates yesterday's sleep and sends it right away (useful if you want to check your stats before 8:05 AM).
+Manually trigger a summary calculation and upload to Discord. This processes all completed days (yesterday and any missed days from the past week) and sends them right away—useful if you want to check your stats immediately rather than waiting for the next hourly sync.
 
 #### 🔄 Check for Updates
 Checks GitHub for new versions. If an update is available, it downloads and installs automatically.
@@ -102,34 +106,32 @@ The app uses the Windows registry to manage auto-start, so it's 100% compatible 
 
 ## 🔧 Configuration
 
-### Discord Bot Integration (Optional)
+### Discord Bot Integration
 
-If you want to share your sleep stats with friends or track them on Discord, you'll need to configure the bot connection:
+The app is configured to automatically send your sleep data to Discord every hour on the hour. You need to provide the Discord bot connection details in the settings file:
 
-1. **Find the settings file**: 
-   - Press `Win + R`
-   - Type: `%ProgramData%\TFTSleepTracker`
-   - Open `settings.json` in Notepad
+1. **Locate the settings file**:
+   ```
+   %ProgramData%\TFTSleepTracker\settings.json
+   ```
 
-2. **Edit the settings**:
+2. **Edit the settings** (use Notepad or any text editor):
    ```json
    {
      "botHost": "https://your-discord-bot.example.com",
-     "token": "your-static-authentication-token",
-     "deviceId": "device-a1b2c3d4e5f6",
-     "lastUpdateCheck": "2024-01-15T08:05:00Z"
+     "token": "your-secret-token-here",
+     "deviceId": "auto-generated-id"
    }
    ```
 
-3. **What to configure**:
+3. **Configure these values**:
    - `botHost`: The URL of your Discord bot server
-   - `token`: Your unique authentication token (ask your bot admin!)
-   - `deviceId`: Auto-generated, leave it as-is
-   - `lastUpdateCheck`: Auto-managed, leave it as-is
+   - `token`: Your authentication token (provided by your bot administrator)
+   - `deviceId`: This is auto-generated; don't change it
 
-4. **Save and restart** the app
+4. **Restart the app** (right-click tray icon → Quit Background, then relaunch).
 
-Once configured, your daily summaries will automatically upload to the bot at 8:05 AM each morning!
+Once configured, your summaries will automatically upload to Discord every hour at the top of the hour (e.g., 1:00 PM, 2:00 PM, etc.).
 
 ### Verify Your Data on Discord
 
@@ -178,7 +180,7 @@ TFT Sleep Tracker checks for updates **once a week** and applies them silently i
 - **Auto-start disabled**: Open main window and enable "Start with Windows"
 - **CSV files empty**: Wait 30 seconds for the first check to occur
 
-### Data Not Uploading to Discord Bot
+### Data Not Syncing to Discord
 - **Check settings.json**: Make sure `botHost` and `token` are correct
 - **Network issues**: Check your internet connection
 - **Bot server down**: Ask your bot admin to check the server status
@@ -197,7 +199,7 @@ TFT Sleep Tracker checks for updates **once a week** and applies them silently i
 
 ### Privacy Concerns
 - **Review the logs**: Open any CSV file to see exactly what's recorded (just timestamps and idle durations)
-- **Disable Discord upload**: Delete or rename `settings.json` to stop all uploads
+- **Disable Discord sync**: Remove `token` from `settings.json` to stop all uploads
 - **Uninstall completely**: Use Windows "Add or Remove Programs" and delete data folders manually if desired
 
 ## 🌌 About TFT Sleep Tracker

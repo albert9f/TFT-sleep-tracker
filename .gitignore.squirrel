@@ -1,0 +1,13 @@
+# .gitignore additions for Squirrel packaging
+
+# Squirrel packaging output
+/dist/
+/nupkgs/
+
+# Published output
+**/bin/Release/*/publish/
+
+# Release artifacts
+*.nupkg
+Setup.exe
+RELEASES

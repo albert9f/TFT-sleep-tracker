@@ -8,7 +8,7 @@ using TFTSleepTracker.Core.Logic;
 namespace TFTSleepTracker.App
 {
     /// <summary>
-    /// Scheduler for daily summary uploads at 08:05 AM
+    /// Scheduler for hourly summary uploads (sends complete data every hour on the hour)
     /// </summary>
     public class DailySummaryScheduler : IDisposable
     {
@@ -16,7 +16,7 @@ namespace TFTSleepTracker.App
         private readonly CsvLogger _csvLogger;
         private readonly LocalTimeWindow _nightlyWindow;
         private readonly TimeSpan _inactivityThreshold;
-        private Timer? _dailyTimer;
+        private Timer? _hourlyTimer;
         private CancellationTokenSource? _cancellationTokenSource;
 
         public event EventHandler<SummaryReadyEventArgs>? SummaryReady;
@@ -33,7 +33,7 @@ namespace TFTSleepTracker.App
         }
 
         /// <summary>
-        /// Starts the daily scheduler
+        /// Starts the hourly scheduler
         /// </summary>
         public void Start()
         {
@@ -42,13 +42,13 @@ namespace TFTSleepTracker.App
         }
 
         /// <summary>
-        /// Stops the daily scheduler
+        /// Stops the hourly scheduler
         /// </summary>
         public void Stop()
         {
             _cancellationTokenSource?.Cancel();
-            _dailyTimer?.Dispose();
-            _dailyTimer = null;
+            _hourlyTimer?.Dispose();
+            _hourlyTimer = null;
         }
 
         /// <summary>
@@ -56,92 +56,98 @@ namespace TFTSleepTracker.App
         /// </summary>
         public async Task SendNowAsync()
         {
-            await ProcessYesterdaySummaryAsync();
+            await ProcessCompletedSummariesAsync();
         }
 
         private void ScheduleNextUpload()
         {
             var now = DateTime.Now;
-            var scheduledTime = new DateTime(now.Year, now.Month, now.Day, 8, 5, 0);
-
-            // If we've already passed 08:05 today, schedule for tomorrow
-            if (now > scheduledTime)
-            {
-                scheduledTime = scheduledTime.AddDays(1);
-            }
-
-            var delay = scheduledTime - now;
-            _dailyTimer = new Timer(
+            
+            // Schedule for the start of the next hour
+            var nextHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0).AddHours(1);
+            var delay = nextHour - now;
+            
+            _hourlyTimer = new Timer(
                 async _ => await OnScheduledTimeAsync(),
                 null,
                 delay,
-                TimeSpan.FromDays(1));
+                TimeSpan.FromHours(1)); // Repeat every hour
         }
 
         private async Task OnScheduledTimeAsync()
         {
-            await ProcessYesterdaySummaryAsync();
+            await ProcessCompletedSummariesAsync();
         }
 
-        private async Task ProcessYesterdaySummaryAsync()
+        private async Task ProcessCompletedSummariesAsync()
         {
             try
             {
-                var yesterday = DateOnly.FromDateTime(DateTime.Now.AddDays(-1));
+                var today = DateOnly.FromDateTime(DateTime.Now);
                 
-                // Get all data points for yesterday
-                var dataPoints = await _csvLogger.GetDataPointsAsync(yesterday);
-                
-                if (dataPoints.Count == 0)
+                // Process all complete days (exclude today since it's incomplete)
+                // Look back up to 7 days to catch any missed summaries
+                for (int daysAgo = 1; daysAgo <= 7; daysAgo++)
                 {
-                    return; // No data to process
-                }
-
-                // Compute sleep minutes from data points
-                var intervals = new List<(DateTimeOffset start, DateTimeOffset end, bool wasActive)>();
-                
-                for (int i = 0; i < dataPoints.Count - 1; i++)
-                {
-                    var current = dataPoints[i];
-                    var next = dataPoints[i + 1];
-                    intervals.Add((current.Timestamp, next.Timestamp, current.IsActive));
-                }
-
-                var sleepMinutes = SleepCalculator.ComputeSleepMinutes(intervals, _inactivityThreshold, _nightlyWindow);
-
-                // Get or create summary
-                var summary = await _summaryStore.GetSummaryAsync(yesterday);
-                if (summary == null)
-                {
-                    summary = new DailySummary
+                    var date = today.AddDays(-daysAgo);
+                    
+                    // Get all data points for this date
+                    var dataPoints = await _csvLogger.GetDataPointsAsync(date);
+                    
+                    if (dataPoints.Count == 0)
                     {
-                        Date = yesterday,
-                        TotalSleepMinutes = sleepMinutes,
-                        TotalActiveMinutes = 0,
-                        TotalInactiveMinutes = 0,
-                        DataPointCount = dataPoints.Count
-                    };
-                }
-                else
-                {
-                    summary.TotalSleepMinutes = sleepMinutes;
-                }
+                        continue; // No data for this day
+                    }
 
-                // Update summary store
-                await _summaryStore.UpdateSummaryAsync(summary);
+                    // Compute sleep minutes from data points
+                    var intervals = new List<(DateTimeOffset start, DateTimeOffset end, bool wasActive)>();
+                    
+                    for (int i = 0; i < dataPoints.Count - 1; i++)
+                    {
+                        var current = dataPoints[i];
+                        var next = dataPoints[i + 1];
+                        intervals.Add((current.Timestamp, next.Timestamp, current.IsActive));
+                    }
 
-                // Raise event for upload
-                SummaryReady?.Invoke(this, new SummaryReadyEventArgs
-                {
-                    Summary = summary,
-                    Date = yesterday,
-                    HasData = true
-                });
+                    var sleepMinutes = SleepCalculator.ComputeSleepMinutes(intervals, _inactivityThreshold, _nightlyWindow);
+
+                    // Get or create summary
+                    var summary = await _summaryStore.GetSummaryAsync(date);
+                    if (summary == null)
+                    {
+                        summary = new DailySummary
+                        {
+                            Date = date,
+                            TotalSleepMinutes = sleepMinutes,
+                            TotalActiveMinutes = 0,
+                            TotalInactiveMinutes = 0,
+                            DataPointCount = dataPoints.Count
+                        };
+                    }
+                    else
+                    {
+                        // Update the sleep minutes if they've changed
+                        if (summary.TotalSleepMinutes != sleepMinutes)
+                        {
+                            summary.TotalSleepMinutes = sleepMinutes;
+                        }
+                    }
+
+                    // Update summary store
+                    await _summaryStore.UpdateSummaryAsync(summary);
+
+                    // Raise event for upload
+                    SummaryReady?.Invoke(this, new SummaryReadyEventArgs
+                    {
+                        Summary = summary,
+                        Date = date
+                    });
+                }
             }
             catch (Exception ex)
             {
                 // Log error but don't crash the application
-                System.Diagnostics.Debug.WriteLine($"Error processing yesterday's summary: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error processing completed summaries: {ex.Message}");
             }
         }
 

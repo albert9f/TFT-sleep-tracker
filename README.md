@@ -1,6 +1,13 @@
 # TFT Sleep Tracker
 
-A Windows desktop application that monitors user activity to track sleep patterns during nighttime hours (11 PM - 8 AM).
+A Windows desktop application that mo### Discord Sync Configuration
+
+The app automatically syncs sleep data to Discord every hour. To configure:
+
+1. Edit `%ProgramData%\TFTSleepTracker\settings.json`
+2. Set `botHost` to your Discord bot's URL
+3. Set `token` to your authentication token
+4. The app will automatically upload summaries every hour at :00 (e.g., 1:00 PM, 2:00 PM)ser activity to track sleep patterns during nighttime hours (11 PM - 8 AM).
 
 ## Features
 
@@ -8,7 +15,13 @@ A Windows desktop application that monitors user activity to track sleep pattern
 - **Daily Sleep Summaries**: Calculates total sleep minutes based on inactivity during nightly windows
 - **System Tray Integration**: Runs quietly in the background with a system tray icon
 - **Autostart**: Automatically starts with Windows login
+- **Activity Tracking**: Monitors keyboard and mouse input every 30 seconds to determine active/inactive periods
+- **Smart Sleep Detection**: Uses a configurable nightly window (default 11 PM – 8 AM) and 5-minute inactivity threshold
+- **Automatic Hourly Sync**: Sends complete daily summaries to Discord every hour on the hour
+- **CSV Logging**: Stores all activity data locally in `%AppData%\TFTSleepTracker\activity_*.csv`
 - **Upload Queue**: Queues sleep summaries for upload to a Discord bot endpoint with retry logic
+- **Auto-Update**: Checks for app updates daily using Squirrel (Windows only)
+- **System Tray**: Runs in the background with a tray icon for easy access
 - **Auto-Update**: Checks for updates weekly via Squirrel.Windows and applies them silently
 - **Robustness**: Handles hibernation, RDP sessions, DST transitions, and file IO errors gracefully
 
@@ -117,46 +130,40 @@ TFTSleepTracker/
 └── TFTSleepTracker.Tests/        # Unit tests
 ```
 
-## Packaging & Releases
+## Packaging & Distribution
 
-### Creating a Release Package
+### Creating a Windows Installer
 
-Use the provided PowerShell script to create release packages:
+Use the Squirrel packaging script to create a Windows installer:
 
 ```powershell
-# Build and package (local)
-.\scripts\pack.ps1 -Version "1.0.0"
+# Quick start - create installer
+cd scripts
+.\pack-squirrel.ps1 -Version "1.0.0"
 
-# Build, package, and upload to GitHub Releases
-.\scripts\pack.ps1 -Version "1.0.0" -Upload
+# Skip tests for faster build
+.\pack-squirrel.ps1 -Version "1.0.0" -SkipTests
+
+# Auto-upload to GitHub Releases
+.\pack-squirrel.ps1 -Version "1.0.0" -Upload
 ```
 
-The script will:
-1. Clean previous builds
-2. Restore NuGet packages
-3. Build the solution in Release mode
-4. Run all tests
-5. Publish the app
-6. Create a Squirrel release package
-7. Optionally upload to GitHub Releases (requires `gh` CLI)
+**Output**: Find `Setup.exe` in the `dist/` folder - distribute this to users!
 
-### Manual Packaging
+**Prerequisites**:
+- .NET 8 SDK
+- Squirrel CLI: `dotnet tool install --global Squirrel`
+- (Optional) GitHub CLI for auto-upload: https://cli.github.com/
 
-```bash
-# Publish the app
-dotnet publish TFTSleepTracker.App/TFTSleepTracker.App.csproj \
-  --configuration Release \
-  --output ./publish
+📖 **See [PACKAGING.md](PACKAGING.md) for detailed instructions**  
+⚡ **See [PACKAGING_QUICKREF.md](PACKAGING_QUICKREF.md) for quick reference**
 
-# Install Clowd.Squirrel CLI
-dotnet tool install --global Clowd.Squirrel
+### Alternative: Clowd.Squirrel
 
-# Create release package
-squirrel pack \
-  --packId TFTSleepTracker \
-  --packVersion 1.0.0 \
-  --packDirectory ./publish \
-  --releaseDir ./releases
+The repository also includes `pack.ps1` which uses Clowd.Squirrel (a Squirrel fork):
+
+```powershell
+.\scripts\pack.ps1 -Version "1.0.0"
 ```
 
 ## CI/CD

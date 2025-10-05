@@ -1,8 +1,11 @@
 using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using System.Drawing;
 using System.ComponentModel;
+using TFTSleepTracker.Core.Storage;
+using TFTSleepTracker.Core.Net;
 using MessageBox = System.Windows.MessageBox;
 
 namespace TFTSleepTracker.App
@@ -175,6 +178,65 @@ namespace TFTSleepTracker.App
                 MessageBox.Show($"Failed to disable autostart: {ex.Message}", "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 AutostartCheckBox.IsChecked = true;
+            }
+        }
+
+        private async void TestButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                TestButton.IsEnabled = false;
+                TestStatusText.Text = "Sending test data...";
+
+                // Generate random date in September 2001 (1-30)
+                var random = new Random();
+                var randomDay = random.Next(1, 31);
+                var testDate = new DateOnly(2001, 9, randomDay);
+
+                // Get settings
+                var settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "TFTSleepTracker");
+                var settingsStore = new AppSettingsStore(settingsDir);
+                var settings = await settingsStore.LoadAsync();
+                
+                if (string.IsNullOrWhiteSpace(settings.BotHost))
+                {
+                    TestStatusText.Text = "❌ Error: Discord bot URL not configured. Check settings.json";
+                    TestStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                    return;
+                }
+
+                // Create test payload (2 hours = 120 minutes)
+                var testPayload = new
+                {
+                    deviceId = settings.DeviceId,
+                    date = testDate.ToString("yyyy-MM-dd"),
+                    sleepMinutes = 120, // 2 hours
+                    computedAt = DateTime.UtcNow.ToString("o")
+                };
+
+                // Send the test data
+                var uploadService = new UploadService(settings.BotHost, settings.Token);
+                var success = await uploadService.UploadAsync(testPayload);
+
+                if (success)
+                {
+                    TestStatusText.Text = $"✅ Success! Sent 2 hours of sleep for September {randomDay}, 2001";
+                    TestStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.LightGreen);
+                }
+                else
+                {
+                    TestStatusText.Text = "❌ Upload failed. Check bot URL and token in settings.json";
+                    TestStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+                }
+            }
+            catch (Exception ex)
+            {
+                TestStatusText.Text = $"❌ Error: {ex.Message}";
+                TestStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
+            }
+            finally
+            {
+                TestButton.IsEnabled = true;
             }
         }
     }

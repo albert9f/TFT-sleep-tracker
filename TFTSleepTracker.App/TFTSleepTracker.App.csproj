@@ -11,6 +11,24 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    
+    <!-- Application metadata for Squirrel packaging -->
+    <AssemblyName>TFTSleepTracker</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>albert9f</Authors>
+    <Company>TFT Sleep Tracker</Company>
+    <Product>TFT Sleep Tracker</Product>
+    <Description>Sleep tracking application for monitoring system idle time</Description>
+    <Copyright>Copyright © 2025</Copyright>
+    
+    <!-- Application icon -->
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <Content Include="app.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>

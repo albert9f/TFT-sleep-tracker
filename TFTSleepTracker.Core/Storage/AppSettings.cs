@@ -10,12 +10,12 @@ public class AppSettings
     /// <summary>
     /// Discord bot host URL (e.g., "https://bot.example.com")
     /// </summary>
-    public string BotHost { get; set; } = "https://localhost:5000";
+    public string BotHost { get; set; } = "http://35.212.220.200";
 
     /// <summary>
     /// Static authentication token for bot endpoint
     /// </summary>
-    public string Token { get; set; } = "";
+    public string Token { get; set; } = "weatheryETHAN";
 
     /// <summary>
     /// Unique device identifier (auto-generated on first run)

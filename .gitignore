@@ -426,3 +426,13 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Squirrel packaging output
+/dist/
+/nupkgs/
+RELEASES
+Setup.exe
+*.nupkg
+
+# Published output directories
+**/publish/
