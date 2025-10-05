@@ -225,7 +225,8 @@ namespace TFTSleepTracker.App
                 }
                 else
                 {
-                    TestStatusText.Text = "❌ Upload failed. Check bot URL and token in settings.json";
+                    var errorDetail = uploadService.LastError ?? "Unknown error";
+                    TestStatusText.Text = $"❌ Upload failed: {errorDetail}";
                     TestStatusText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Red);
                 }
             }

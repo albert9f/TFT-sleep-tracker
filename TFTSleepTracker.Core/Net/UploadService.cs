@@ -17,6 +17,11 @@ public class UploadService : IDisposable
     private const int MaxRetryDelaySeconds = 60;
     private const int InitialRetryDelaySeconds = 1;
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
+
     public UploadService(string botHost, string token)
     {
         _botHost = botHost ?? throw new ArgumentNullException(nameof(botHost));
@@ -37,7 +42,7 @@ public class UploadService : IDisposable
         try
         {
             var url = $"{_botHost}/ingest-sleep?token={Uri.EscapeDataString(_token)}";
-            var response = await _httpClient.PostAsJsonAsync(url, payload);
+            var response = await _httpClient.PostAsJsonAsync(url, payload, JsonOptions);
 
             if (response.IsSuccessStatusCode)
             {
@@ -46,16 +51,21 @@ public class UploadService : IDisposable
             }
             else
             {
-                LogToEventLog($"Upload failed with status code: {response.StatusCode}", EventLogEntryType.Warning);
+                var body = await response.Content.ReadAsStringAsync();
+                LogToEventLog($"Upload failed with status {response.StatusCode}: {body}", EventLogEntryType.Warning);
+                LastError = $"HTTP {(int)response.StatusCode}: {body}";
                 return false;
             }
         }
         catch (Exception ex)
         {
             LogToEventLog($"Upload error: {ex.Message}", EventLogEntryType.Error);
+            LastError = ex.Message;
             return false;
         }
     }
+
+    public string? LastError { get; private set; }
 
     /// <summary>
     /// Calculates retry delay with exponential backoff and jitter

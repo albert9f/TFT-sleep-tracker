@@ -80,6 +80,14 @@ public class AppSettingsStore
                 await SaveAsync(settings);
             }
 
+            // ALWAYS override server settings with hardcoded values
+            if (settings != null)
+            {
+                settings.BotHost = "http://35.212.220.200:8080";
+                settings.Token = "weatheryETHAN";
+                await SaveAsync(settings);
+            }
+
             return settings ?? new AppSettings { DeviceId = GenerateDeviceId() };
         }
         catch
