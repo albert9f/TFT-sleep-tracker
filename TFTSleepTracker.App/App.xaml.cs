@@ -52,6 +52,11 @@ namespace TFTSleepTracker.App
                 // Silently fail if autostart cannot be enabled
             }
 
+            // Create main window but keep it hidden
+            var mainWindow = new MainWindow();
+            MainWindow = mainWindow;
+            // Don't show the window - it will be shown when user clicks tray icon
+
             // Initialize activity tracker
             var dataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

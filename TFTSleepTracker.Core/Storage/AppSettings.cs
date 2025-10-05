@@ -73,18 +73,10 @@ public class AppSettingsStore
             var json = await File.ReadAllTextAsync(_settingsFilePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
             
-            // Ensure device ID exists
+            // Only generate device ID if not found
             if (settings != null && string.IsNullOrEmpty(settings.DeviceId))
             {
                 settings.DeviceId = GenerateDeviceId();
-                await SaveAsync(settings);
-            }
-
-            // ALWAYS override server settings with hardcoded values
-            if (settings != null)
-            {
-                settings.BotHost = "http://35.212.220.200:8080";
-                settings.Token = "weatheryETHAN";
                 await SaveAsync(settings);
             }
 
