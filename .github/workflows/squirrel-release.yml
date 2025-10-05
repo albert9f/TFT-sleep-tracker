@@ -1,0 +1,154 @@
+# GitHub Actions Workflow for Automated Squirrel Releases
+
+name: Build and Release with Squirrel
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.1, v1.0.2, etc.
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.1)'
+        required: true
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest  # MUST use Windows for WPF apps
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Install Squirrel CLI
+        run: dotnet tool install --global Squirrel
+      
+      - name: Determine version
+        id: version
+        run: |
+          if ("${{ github.event_name }}" -eq "push") {
+            # Extract version from tag (e.g., v1.0.1 -> 1.0.1)
+            $version = "${{ github.ref_name }}".TrimStart('v')
+          } else {
+            # Use manual input
+            $version = "${{ github.event.inputs.version }}"
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Building version: $version"
+        shell: pwsh
+      
+      - name: Update project version
+        run: |
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $csprojPath = "TFTSleepTracker.App/TFTSleepTracker.App.csproj"
+          $content = Get-Content $csprojPath -Raw
+          $content = $content -replace '<Version>.*?</Version>', "<Version>$version</Version>"
+          Set-Content $csprojPath $content
+          echo "Updated .csproj to version $version"
+        shell: pwsh
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Run tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+      
+      - name: Publish application
+        run: |
+          dotnet publish TFTSleepTracker.App/TFTSleepTracker.App.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output publish `
+            /p:PublishSingleFile=true `
+            /p:PublishTrimmed=true `
+            /p:Version=${{ steps.version.outputs.VERSION }}
+        shell: pwsh
+      
+      - name: Create NuGet package
+        run: |
+          New-Item -ItemType Directory -Path nupkgs -Force
+          squirrel pack `
+            --framework net8.0-windows `
+            --packId TFTSleepTracker `
+            --packVersion ${{ steps.version.outputs.VERSION }} `
+            --packDirectory publish `
+            --output nupkgs
+        shell: pwsh
+      
+      - name: Create Squirrel installer
+        run: |
+          New-Item -ItemType Directory -Path dist -Force
+          $nupkg = Get-ChildItem -Path nupkgs -Filter "TFTSleepTracker.${{ steps.version.outputs.VERSION }}.nupkg" | Select-Object -First 1
+          squirrel releasify `
+            --package $nupkg.FullName `
+            --releaseDir dist
+        shell: pwsh
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: TFT Sleep Tracker v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## TFT Sleep Tracker v${{ steps.version.outputs.VERSION }}
+            
+            ### Installation
+            
+            **New Users**: Download and run `Setup.exe`
+            
+            **Existing Users**: Auto-update will roll out within 7 days
+            
+            ### What's Included
+            
+            - ✅ `Setup.exe` - Windows installer
+            - ✅ `RELEASES` - Auto-update manifest
+            - ✅ `.nupkg` files - Update packages
+            
+            ### Auto-Update Information
+            
+            If you're currently running version 1.0.0 or earlier, your app will automatically download and install this update within 7 days. No action required!
+            
+            ### Changes in This Release
+            
+            See commit history for detailed changes.
+          draft: false
+          prerelease: false
+          files: |
+            dist/Setup.exe
+            dist/RELEASES
+            dist/*.nupkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload artifacts (for debugging)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts-${{ steps.version.outputs.VERSION }}
+          path: dist/
+          retention-days: 30
+
+  # Optional: Notify on success/failure
+  notify:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: always()
+    steps:
+      - name: Notify success
+        if: needs.build-and-release.result == 'success'
+        run: echo "✅ Release completed successfully!"
+      
+      - name: Notify failure
+        if: needs.build-and-release.result == 'failure'
+        run: |
+          echo "❌ Release failed!"
+          exit 1
