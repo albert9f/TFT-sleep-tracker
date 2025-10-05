@@ -72,6 +72,10 @@ namespace TFTSleepTracker.App
 
             // Check for updates in background (if due)
             CheckForUpdatesInBackgroundAsync().ConfigureAwait(false);
+
+            // Create main window but keep it hidden (start in background)
+            var mainWindow = new MainWindow();
+            // Do not call Show() - window stays hidden until user opens from tray
         }
 
         private async Task CheckForUpdatesInBackgroundAsync()
