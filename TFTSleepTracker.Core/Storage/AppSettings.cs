@@ -10,7 +10,7 @@ public class AppSettings
     /// <summary>
     /// Discord bot host URL (e.g., "https://bot.example.com")
     /// </summary>
-    public string BotHost { get; set; } = "http://35.212.220.200";
+    public string BotHost { get; set; } = "http://35.212.220.200:8080";
 
     /// <summary>
     /// Static authentication token for bot endpoint
