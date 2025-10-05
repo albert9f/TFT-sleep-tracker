@@ -27,7 +27,12 @@ jobs:
           dotnet-version: '8.0.x'
       
       - name: Install Squirrel CLI
-        run: dotnet tool install --global Squirrel
+        run: |
+          dotnet tool install --global Clowd.Squirrel --version 2.11.1 2>&1 | Out-Null
+          if ($LASTEXITCODE -ne 0) {
+            dotnet tool update --global Clowd.Squirrel --version 2.11.1 2>&1 | Out-Null
+          }
+        shell: pwsh
       
       - name: Determine version
         id: version
@@ -74,23 +79,13 @@ jobs:
             /p:Version=${{ steps.version.outputs.VERSION }}
         shell: pwsh
       
-      - name: Create NuGet package
+      - name: Create NuGet package and installer
         run: |
-          New-Item -ItemType Directory -Path nupkgs -Force
+          New-Item -ItemType Directory -Path dist -Force
           squirrel pack `
-            --framework net8.0-windows `
             --packId TFTSleepTracker `
             --packVersion ${{ steps.version.outputs.VERSION }} `
             --packDirectory publish `
-            --output nupkgs
-        shell: pwsh
-      
-      - name: Create Squirrel installer
-        run: |
-          New-Item -ItemType Directory -Path dist -Force
-          $nupkg = Get-ChildItem -Path nupkgs -Filter "TFTSleepTracker.${{ steps.version.outputs.VERSION }}.nupkg" | Select-Object -First 1
-          squirrel releasify `
-            --package $nupkg.FullName `
             --releaseDir dist
         shell: pwsh
       
