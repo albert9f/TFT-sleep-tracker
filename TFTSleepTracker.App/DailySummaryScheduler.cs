@@ -109,6 +109,45 @@ namespace TFTSleepTracker.App
                         intervals.Add((current.Timestamp, next.Timestamp, current.IsActive));
                     }
 
+                    // Handle gaps in data (PC powered off) - treat as inactive during sleep hours
+                    // Look at previous day's last data point and today's first data point
+                    var previousDate = date.AddDays(-1);
+                    var previousDayDataPoints = await _csvLogger.GetDataPointsAsync(previousDate);
+                    
+                    if (previousDayDataPoints.Count > 0 && dataPoints.Count > 0)
+                    {
+                        var lastPreviousPoint = previousDayDataPoints[previousDayDataPoints.Count - 1];
+                        var firstTodayPoint = dataPoints[0];
+                        
+                        // If there's a gap between last point of previous day and first point of today
+                        var gapDuration = firstTodayPoint.Timestamp - lastPreviousPoint.Timestamp;
+                        
+                        // If the gap is longer than 30 seconds (missed data point), treat as inactive
+                        if (gapDuration.TotalSeconds > 30)
+                        {
+                            // Add this gap as an inactive interval
+                            intervals.Insert(0, (lastPreviousPoint.Timestamp, firstTodayPoint.Timestamp, false));
+                        }
+                    }
+                    
+                    // Also check for gap from last data point to end of day
+                    var nextDate = date.AddDays(1);
+                    var nextDayDataPoints = await _csvLogger.GetDataPointsAsync(nextDate);
+                    
+                    if (dataPoints.Count > 0 && nextDayDataPoints.Count > 0)
+                    {
+                        var lastTodayPoint = dataPoints[dataPoints.Count - 1];
+                        var firstNextPoint = nextDayDataPoints[0];
+                        
+                        var gapDuration = firstNextPoint.Timestamp - lastTodayPoint.Timestamp;
+                        
+                        // If the gap is longer than 30 seconds, treat as inactive
+                        if (gapDuration.TotalSeconds > 30)
+                        {
+                            intervals.Add((lastTodayPoint.Timestamp, firstNextPoint.Timestamp, false));
+                        }
+                    }
+
                     var sleepMinutes = SleepCalculator.ComputeSleepMinutes(intervals, _inactivityThreshold, _nightlyWindow);
 
                     // Get or create summary
@@ -140,7 +179,8 @@ namespace TFTSleepTracker.App
                     SummaryReady?.Invoke(this, new SummaryReadyEventArgs
                     {
                         Summary = summary,
-                        Date = date
+                        Date = date,
+                        HasData = true
                     });
                 }
             }
