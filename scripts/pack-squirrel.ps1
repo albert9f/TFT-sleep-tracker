@@ -251,12 +251,13 @@ Write-Host "Release artifacts in: " -NoNewline -ForegroundColor White
 Write-Host $OutputDir -ForegroundColor Cyan
 Write-Host ""
 
-Get-ChildItem -Path $OutputDir -File | ForEach-Object {
-    $sizeKB = [math]::Round($_.Length / 1KB, 0)
-    Write-Host "  📦 " -NoNewline -ForegroundColor Yellow
-    Write-Host "$($_.Name) " -NoNewline -ForegroundColor White
-    Write-Host "($sizeKB KB)" -ForegroundColor Gray
-}
+# Get-ChildItem -Path $OutputDir -File | ForEach-Object {
+#     $sizeKB = [math]::Round($_.Length / 1KB, 0)
+#     Write-Host "  📦 " -NoNewline -ForegroundColor Yellow
+#     Write-Host "$($_.Name) " -NoNewline -ForegroundColor White
+#     Write-Host "($sizeKB" -NoNewline -ForegroundColor Gray
+#     Write-Host " KB)" -ForegroundColor Gray
+# }
 
 Write-Host ""
 Write-Host "Key files:" -ForegroundColor White
