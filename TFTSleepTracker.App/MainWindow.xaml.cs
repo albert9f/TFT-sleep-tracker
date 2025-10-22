@@ -284,7 +284,7 @@ namespace TFTSleepTracker.App
             try
             {
                 var startDate = _insightsStartDate.Date;
-                var endDate = _insightsEndDate.Date.AddDays(1).AddSeconds(-1);
+                var endDate = _insightsEndDate.Date.AddDays(1);
                 
                 // Get data directory
                 var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TFTSleepTracker");
