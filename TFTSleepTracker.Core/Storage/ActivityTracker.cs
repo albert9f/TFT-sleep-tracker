@@ -314,7 +314,7 @@ public class ActivityTracker : IDisposable
             {
                 Timestamp = DateTimeOffset.Now,
                 ActivityType = activityType,
-                DurationMinutes = 1 // 30 seconds ≈ 0.5 min, rounded to 1
+                DurationMinutes = 0.5 // 30 seconds = 0.5 min
             };
             
             await _summaryStore.LogActivityDataPointAsync(dataPoint);
