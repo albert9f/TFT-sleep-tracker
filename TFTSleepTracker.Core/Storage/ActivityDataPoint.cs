@@ -6,6 +6,11 @@ namespace TFTSleepTracker.Core.Storage;
 public class ActivityDataPoint
 {
     /// <summary>
+    /// Primary key for database
+    /// </summary>
+    public int Id { get; set; }
+    
+    /// <summary>
     /// Timestamp when the data point was recorded
     /// </summary>
     public DateTimeOffset Timestamp { get; set; }
@@ -24,4 +29,14 @@ public class ActivityDataPoint
     /// Sleep minutes increment for this data point
     /// </summary>
     public int SleepMinutesIncrement { get; set; }
+    
+    /// <summary>
+    /// Type of activity: "Sleep", "Active", "TFT", "Fortnite", "Roblox"
+    /// </summary>
+    public string ActivityType { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Duration in minutes (typically 0.5 for 30-second intervals)
+    /// </summary>
+    public int DurationMinutes { get; set; }
 }

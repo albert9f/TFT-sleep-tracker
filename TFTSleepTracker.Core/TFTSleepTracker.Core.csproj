@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Clowd.Squirrel" Version="2.11.1" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
     <PackageReference Include="Microsoft.Windows.Compatibility" Version="9.0.9" />
     <PackageReference Include="System.Text.Json" Version="9.0.9" />
   </ItemGroup>

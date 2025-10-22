@@ -29,4 +29,24 @@ public class DailySummary
     /// Number of activity data points recorded
     /// </summary>
     public int DataPointCount { get; set; }
+    
+    /// <summary>
+    /// Total minutes playing Teamfight Tactics
+    /// </summary>
+    public int TftMinutes { get; set; }
+
+    /// <summary>
+    /// Total minutes playing Fortnite
+    /// </summary>
+    public int FortniteMinutes { get; set; }
+
+    /// <summary>
+    /// Total minutes playing Roblox
+    /// </summary>
+    public int RobloxMinutes { get; set; }
+
+    /// <summary>
+    /// Sum of all gaming time (TFT + Fortnite + Roblox)
+    /// </summary>
+    public int TotalGamingMinutes { get; set; }
 }

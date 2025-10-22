@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using TFTSleepTracker.Core.Logic;
 
 namespace TFTSleepTracker.Core.Storage;
@@ -19,6 +20,7 @@ public class ActivityTracker : IDisposable
     private bool _wasActiveLastCheck;
     private double _currentInactivityMinutes;
     private bool _isMonitoring;
+    private System.Timers.Timer? _gameDetectionTimer;
 
     public ActivityTracker(
         string dataDirectory,
@@ -51,6 +53,11 @@ public class ActivityTracker : IDisposable
     {
         _inputMonitor.StartMonitoring();
         _isMonitoring = true;
+        
+        // Start game detection timer (every 30 seconds)
+        _gameDetectionTimer = new System.Timers.Timer(30000);
+        _gameDetectionTimer.Elapsed += OnGameDetectionTick;
+        _gameDetectionTimer.Start();
     }
 
     /// <summary>
@@ -58,6 +65,8 @@ public class ActivityTracker : IDisposable
     /// </summary>
     public void Stop()
     {
+        _gameDetectionTimer?.Stop();
+        _gameDetectionTimer?.Dispose();
         _inputMonitor.StopMonitoring();
         _isMonitoring = false;
     }
@@ -206,6 +215,114 @@ public class ActivityTracker : IDisposable
         }
 
         await _summaryStore.UpdateSummaryAsync(summary);
+    }
+
+    /// <summary>
+    /// Checks if any gaming processes are running
+    /// </summary>
+    /// <param name="gameName">Output: name of detected game</param>
+    /// <returns>True if a game is running</returns>
+    private bool IsGameRunning(out string gameName)
+    {
+        try
+        {
+            var processes = Process.GetProcesses();
+            
+            // TFT Detection - Multiple process names
+            var tftProcesses = new[] 
+            { 
+                "LeagueClientUx", 
+                "League of Legends", 
+                "LeagueClient",
+                "RiotClientServices",
+                "LeagueClientUxRender"
+            };
+            
+            if (processes.Any(p => tftProcesses.Any(name => 
+                p.ProcessName.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)))
+            {
+                gameName = "TFT";
+                return true;
+            }
+            
+            // Fortnite Detection
+            var fortniteProcesses = new[] 
+            { 
+                "FortniteClient", 
+                "FortniteLauncher",
+                "EpicGamesLauncher",
+                "FortniteClient-Win64-Shipping"
+            };
+            
+            if (processes.Any(p => fortniteProcesses.Any(name => 
+                p.ProcessName.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)))
+            {
+                gameName = "Fortnite";
+                return true;
+            }
+            
+            // Roblox Detection
+            var robloxProcesses = new[] 
+            { 
+                "RobloxPlayer", 
+                "RobloxPlayerBeta",
+                "RobloxStudio"
+            };
+            
+            if (processes.Any(p => robloxProcesses.Any(name => 
+                p.ProcessName.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)))
+            {
+                gameName = "Roblox";
+                return true;
+            }
+            
+            gameName = string.Empty;
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error checking for games: {ex.Message}");
+            gameName = string.Empty;
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Called every 30 seconds to log current activity
+    /// </summary>
+    private async void OnGameDetectionTick(object? sender, System.Timers.ElapsedEventArgs e)
+    {
+        try
+        {
+            string activityType;
+            
+            if (IsGameRunning(out var game))
+            {
+                activityType = game; // "TFT", "Fortnite", or "Roblox"
+            }
+            else if (_wasActiveLastCheck) // Use existing activity detection
+            {
+                activityType = "Active";
+            }
+            else
+            {
+                activityType = "Sleep";
+            }
+            
+            // Log to database
+            var dataPoint = new ActivityDataPoint
+            {
+                Timestamp = DateTimeOffset.Now,
+                ActivityType = activityType,
+                DurationMinutes = 1 // 30 seconds ≈ 0.5 min, rounded to 1
+            };
+            
+            await _summaryStore.LogActivityDataPointAsync(dataPoint);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error logging activity: {ex.Message}");
+        }
     }
 
     public void Dispose()
