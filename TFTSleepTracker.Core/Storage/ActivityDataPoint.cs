@@ -38,5 +38,5 @@ public class ActivityDataPoint
     /// <summary>
     /// Duration in minutes (typically 0.5 for 30-second intervals)
     /// </summary>
-    public int DurationMinutes { get; set; }
+    public double DurationMinutes { get; set; }
 }
