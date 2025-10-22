@@ -6,6 +6,12 @@ using System.Drawing;
 using System.ComponentModel;
 using TFTSleepTracker.Core.Storage;
 using TFTSleepTracker.Core.Net;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using SkiaSharp;
+using System.Linq;
+using System.Collections.Generic;
 using MessageBox = System.Windows.MessageBox;
 
 namespace TFTSleepTracker.App
@@ -16,12 +22,15 @@ namespace TFTSleepTracker.App
     public partial class MainWindow : Window
     {
         private NotifyIcon? _notifyIcon;
+        private DateTime _insightsStartDate;
+        private DateTime _insightsEndDate;
 
         public MainWindow()
         {
             InitializeComponent();
             InitializeTrayIcon();
             InitializeSettings();
+            InitializeInsightsTab();
         }
 
         private void InitializeSettings()
@@ -239,6 +248,162 @@ namespace TFTSleepTracker.App
             {
                 TestButton.IsEnabled = true;
             }
+        }
+        
+        /// <summary>
+        /// Initializes the Insights tab with default date range
+        /// </summary>
+        private void InitializeInsightsTab()
+        {
+            // Set default date range to last 7 days
+            _insightsEndDate = DateTime.Today;
+            _insightsStartDate = DateTime.Today.AddDays(-7);
+            
+            InsightsStartDate.SelectedDate = _insightsStartDate;
+            InsightsEndDate.SelectedDate = _insightsEndDate;
+            
+            // Initial data load
+            RefreshInsights();
+        }
+        
+        /// <summary>
+        /// Handles the Refresh button click in Insights tab
+        /// </summary>
+        private void RefreshInsights_Click(object sender, RoutedEventArgs e)
+        {
+            _insightsStartDate = InsightsStartDate.SelectedDate ?? DateTime.Today.AddDays(-7);
+            _insightsEndDate = InsightsEndDate.SelectedDate ?? DateTime.Today;
+            RefreshInsights();
+        }
+        
+        /// <summary>
+        /// Refreshes all Insights visualizations
+        /// </summary>
+        private async void RefreshInsights()
+        {
+            try
+            {
+                var startDate = _insightsStartDate.Date;
+                var endDate = _insightsEndDate.Date.AddDays(1);
+                
+                // Get data directory
+                var dataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TFTSleepTracker");
+                var summaryStore = new SummaryStore(dataDir);
+                
+                // Get data from database
+                var activityData = await summaryStore.GetActivityDataPointsAsync(startDate, endDate);
+                var gameSummary = await summaryStore.GetGameTimeSummaryAsync(startDate, endDate);
+                
+                // Update all visualizations
+                UpdateSummaryCards(gameSummary);
+                UpdateGamingTimeChart(activityData, startDate, endDate);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error refreshing insights: {ex.Message}", 
+                               "Error", 
+                               MessageBoxButton.OK, 
+                               MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// Updates the gaming time summary cards
+        /// </summary>
+        private void UpdateSummaryCards(Dictionary<string, int> gameSummary)
+        {
+            var tftMinutes = gameSummary.ContainsKey("TFT") ? gameSummary["TFT"] : 0;
+            var fortniteMinutes = gameSummary.ContainsKey("Fortnite") ? gameSummary["Fortnite"] : 0;
+            var robloxMinutes = gameSummary.ContainsKey("Roblox") ? gameSummary["Roblox"] : 0;
+            var totalMinutes = tftMinutes + fortniteMinutes + robloxMinutes;
+            
+            TftTimeText.Text = FormatTimeHoursMinutes(tftMinutes);
+            FortniteTimeText.Text = FormatTimeHoursMinutes(fortniteMinutes);
+            RobloxTimeText.Text = FormatTimeHoursMinutes(robloxMinutes);
+            TotalGamingTimeText.Text = FormatTimeHoursMinutes(totalMinutes);
+        }
+        
+        /// <summary>
+        /// Formats minutes into "Xh Ym" format
+        /// </summary>
+        private string FormatTimeHoursMinutes(int totalMinutes)
+        {
+            var hours = totalMinutes / 60;
+            var minutes = totalMinutes % 60;
+            return $"{hours}h {minutes}m";
+        }
+        
+        /// <summary>
+        /// Updates the gaming time chart
+        /// </summary>
+        private void UpdateGamingTimeChart(List<ActivityDataPoint> data, DateTime start, DateTime end)
+        {
+            // Group by date and game type
+            var dailyData = data
+                .Where(d => d.ActivityType == "TFT" || d.ActivityType == "Fortnite" || d.ActivityType == "Roblox")
+                .GroupBy(d => d.Timestamp.Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    TFT = g.Where(x => x.ActivityType == "TFT").Sum(x => x.DurationMinutes) / 60.0,
+                    Fortnite = g.Where(x => x.ActivityType == "Fortnite").Sum(x => x.DurationMinutes) / 60.0,
+                    Roblox = g.Where(x => x.ActivityType == "Roblox").Sum(x => x.DurationMinutes) / 60.0
+                })
+                .ToList();
+            
+            // Fill in missing dates with zeros
+            var allDates = Enumerable.Range(0, (int)(end - start).TotalDays + 1)
+                .Select(offset => start.AddDays(offset).Date)
+                .ToList();
+            
+            var completeData = allDates.Select(date =>
+            {
+                var existing = dailyData.FirstOrDefault(d => d.Date == date);
+                return new
+                {
+                    Date = date,
+                    TFT = existing?.TFT ?? 0,
+                    Fortnite = existing?.Fortnite ?? 0,
+                    Roblox = existing?.Roblox ?? 0
+                };
+            }).ToList();
+            
+            // For now, just update the placeholder text with summary data
+            var totalHours = completeData.Sum(d => d.TFT + d.Fortnite + d.Roblox);
+            ChartPlaceholder.Text = $"Gaming chart visualization\nTotal: {totalHours:F1} hours across {completeData.Count} days";
+            
+            // TODO: Implement proper chart when LiveCharts issue is resolved
+            // Create series for LiveCharts
+            // var tftSeries = new LineSeries<double>
+            // {
+            //     Name = "TFT",
+            //     Values = completeData.Select(d => d.TFT).ToArray(),
+            //     Stroke = new SolidColorPaint(SKColors.Blue) { StrokeThickness = 3 },
+            //     Fill = null,
+            //     GeometrySize = 8
+            // };
+            // 
+            // var fortniteSeries = new LineSeries<double>
+            // {
+            //     Name = "Fortnite",
+            //     Values = completeData.Select(d => d.Fortnite).ToArray(),
+            //     Stroke = new SolidColorPaint(SKColors.Teal) { StrokeThickness = 3 },
+            //     Fill = null,
+            //     GeometrySize = 8
+            // };
+            // 
+            // var robloxSeries = new LineSeries<double>
+            // {
+            //     Name = "Roblox",
+            //     Values = completeData.Select(d => d.Roblox).ToArray(),
+            //     Stroke = new SolidColorPaint(SKColors.Red) { StrokeThickness = 3 },
+            //     Fill = null,
+            //     GeometrySize = 8
+            // };
+            // 
+            // // Update chart
+            // GamingTimeChart.Series = new ISeries[] { tftSeries, fortniteSeries, robloxSeries };
         }
     }
 }

@@ -4,8 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TFTSleepTracker.App"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         mc:Ignorable="d"
-        Title="TFT Sleep Tracker" Height="500" Width="900"
+        Title="TFT Sleep Tracker" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen">
     
     <Window.Resources>
@@ -78,122 +79,308 @@
         </Border>
         
         <!-- Main Content -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="20">
-                
-                <!-- Status Card -->
-                <Border Style="{StaticResource TftCard}">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource TftHeader}">Status</TextBlock>
-                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
-                            <Run Text="Tracking: "/>
-                            <Run Text="Active" Foreground="#4CAF50" FontWeight="Bold"/>
-                        </TextBlock>
-                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
-                            <Run Text="Last Check: "/>
-                            <Run Text="Just now" FontWeight="SemiBold"/>
-                        </TextBlock>
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+            <!-- Overview Tab -->
+            <TabItem Header="Overview">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+                        
+                        <!-- Status Card -->
+                        <Border Style="{StaticResource TftCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource TftHeader}">Status</TextBlock>
+                                <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                                    <Run Text="Tracking: "/>
+                                    <Run Text="Active" Foreground="#4CAF50" FontWeight="Bold"/>
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                                    <Run Text="Last Check: "/>
+                                    <Run Text="Just now" FontWeight="SemiBold"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Today's Stats Card -->
+                        <Border Style="{StaticResource TftCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource TftHeader}">Today's Stats</TextBlock>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                        <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Sleep Time</TextBlock>
+                                        <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                        <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Active Time</TextBlock>
+                                        <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                        <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Inactive Time</TextBlock>
+                                        <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Settings Card -->
+                        <Border Style="{StaticResource TftCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource TftHeader}">Settings</TextBlock>
+                                <CheckBox x:Name="AutostartCheckBox" 
+                                          Foreground="{StaticResource TftTextWhite}"
+                                          Margin="0,10,0,10"
+                                          Checked="AutostartCheckBox_Checked"
+                                          Unchecked="AutostartCheckBox_Unchecked">
+                                    <TextBlock Style="{StaticResource TftText}">
+                                        Start automatically at login
+                                    </TextBlock>
+                                </CheckBox>
+                                <TextBlock Style="{StaticResource TftText}" Margin="0,5">
+                                    Data is stored in your AppData folder and uploaded hourly.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Test Card -->
+                        <Border Style="{StaticResource TftCard}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource TftHeader}">Testing</TextBlock>
+                                <TextBlock Style="{StaticResource TftText}" Margin="0,0,0,10">
+                                    Test the Discord integration by sending a fake sleep session.
+                                </TextBlock>
+                                <Button x:Name="TestButton" 
+                                        Click="TestButton_Click"
+                                        Height="40"
+                                        Background="{StaticResource TftAccentBlue}"
+                                        BorderBrush="{StaticResource TftGold}"
+                                        BorderThickness="2"
+                                        Foreground="{StaticResource TftTextWhite}"
+                                        FontSize="14"
+                                        FontWeight="Bold"
+                                        Cursor="Hand">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                CornerRadius="5">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource TftGold}"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource TftDarkBlue}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                    🧪 Send Test Data to Discord
+                                </Button>
+                                <TextBlock x:Name="TestStatusText" 
+                                           Style="{StaticResource TftText}" 
+                                           Margin="0,10,0,0"
+                                           FontStyle="Italic"
+                                           Foreground="{StaticResource TftLightGold}"/>
+                            </StackPanel>
+                        </Border>
+                        
                     </StackPanel>
-                </Border>
-                
-                <!-- Today's Stats Card -->
-                <Border Style="{StaticResource TftCard}">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource TftHeader}">Today's Stats</TextBlock>
-                        <Grid>
+                </ScrollViewer>
+            </TabItem>
+            
+            <!-- Insights Tab -->
+            <TabItem Header="Gaming Insights">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20">
+                        <!-- Title -->
+                        <TextBlock Text="Gaming Insights" 
+                                  Style="{StaticResource TftHeader}"
+                                  FontSize="28" 
+                                  Margin="0,0,0,20"/>
+                        
+                        <!-- Date Range Selector -->
+                        <Border Style="{StaticResource TftCard}">
+                            <StackPanel>
+                                <TextBlock Text="Date Range" 
+                                          Style="{StaticResource TftHeader}"
+                                          FontSize="18"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <TextBlock Text="From:" 
+                                              Style="{StaticResource TftText}"
+                                              VerticalAlignment="Center" 
+                                              Margin="0,0,10,0"/>
+                                    <DatePicker x:Name="InsightsStartDate" 
+                                               Width="130"
+                                               Margin="0,0,20,0"/>
+                                    <TextBlock Text="To:" 
+                                              Style="{StaticResource TftText}"
+                                              VerticalAlignment="Center" 
+                                              Margin="0,0,10,0"/>
+                                    <DatePicker x:Name="InsightsEndDate" 
+                                               Width="130"
+                                               Margin="0,0,20,0"/>
+                                    <Button Content="Refresh" 
+                                           Click="RefreshInsights_Click" 
+                                           Padding="15,5"
+                                           Background="{StaticResource TftAccentBlue}"
+                                           Foreground="{StaticResource TftTextWhite}"
+                                           BorderBrush="{StaticResource TftGold}"
+                                           BorderThickness="2"
+                                           Cursor="Hand"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Gaming Summary Cards -->
+                        <TextBlock Text="Gaming Time Summary" 
+                                  Style="{StaticResource TftHeader}"
+                                  FontSize="18"
+                                  Margin="0,20,0,10"/>
+                        <Grid Margin="0,0,0,20">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Sleep Time</TextBlock>
-                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
-                            </StackPanel>
+                            <!-- TFT Card -->
+                            <Border Grid.Column="0" 
+                                   Background="#FF5A5AFF" 
+                                   CornerRadius="8" 
+                                   Padding="15" 
+                                   Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="🎮 TFT" 
+                                              FontSize="16" 
+                                              FontWeight="Bold" 
+                                              Foreground="White"/>
+                                    <TextBlock x:Name="TftTimeText" 
+                                              Text="0h 0m" 
+                                              FontSize="24" 
+                                              FontWeight="Bold"
+                                              Foreground="White" 
+                                              Margin="0,10,0,0"/>
+                                    <TextBlock Text="Total playtime" 
+                                              FontSize="11" 
+                                              Foreground="#E0E0E0" 
+                                              Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
                             
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Active Time</TextBlock>
-                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
-                            </StackPanel>
+                            <!-- Fortnite Card -->
+                            <Border Grid.Column="1" 
+                                   Background="#FF00BFA5" 
+                                   CornerRadius="8" 
+                                   Padding="15" 
+                                   Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="🔫 Fortnite" 
+                                              FontSize="16" 
+                                              FontWeight="Bold" 
+                                              Foreground="White"/>
+                                    <TextBlock x:Name="FortniteTimeText" 
+                                              Text="0h 0m" 
+                                              FontSize="24" 
+                                              FontWeight="Bold"
+                                              Foreground="White" 
+                                              Margin="0,10,0,0"/>
+                                    <TextBlock Text="Total playtime" 
+                                              FontSize="11" 
+                                              Foreground="#E0E0E0" 
+                                              Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
                             
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Style="{StaticResource TftText}" TextAlignment="Center" Opacity="0.8">Inactive Time</TextBlock>
-                                <TextBlock Style="{StaticResource TftValue}" TextAlignment="Center">0h</TextBlock>
-                            </StackPanel>
+                            <!-- Roblox Card -->
+                            <Border Grid.Column="2" 
+                                   Background="#FFFF6B6B" 
+                                   CornerRadius="8" 
+                                   Padding="15" 
+                                   Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="🟥 Roblox" 
+                                              FontSize="16" 
+                                              FontWeight="Bold" 
+                                              Foreground="White"/>
+                                    <TextBlock x:Name="RobloxTimeText" 
+                                              Text="0h 0m" 
+                                              FontSize="24" 
+                                              FontWeight="Bold"
+                                              Foreground="White" 
+                                              Margin="0,10,0,0"/>
+                                    <TextBlock Text="Total playtime" 
+                                              FontSize="11" 
+                                              Foreground="#E0E0E0" 
+                                              Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            
+                            <!-- Total Card -->
+                            <Border Grid.Column="3" 
+                                   Background="#FF6C757D" 
+                                   CornerRadius="8" 
+                                   Padding="15" 
+                                   Margin="5">
+                                <StackPanel>
+                                    <TextBlock Text="🎯 Total" 
+                                              FontSize="16" 
+                                              FontWeight="Bold" 
+                                              Foreground="White"/>
+                                    <TextBlock x:Name="TotalGamingTimeText" 
+                                              Text="0h 0m" 
+                                              FontSize="24" 
+                                              FontWeight="Bold"
+                                              Foreground="White" 
+                                              Margin="0,10,0,0"/>
+                                    <TextBlock Text="All gaming time" 
+                                              FontSize="11" 
+                                              Foreground="#E0E0E0" 
+                                              Margin="0,5,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
+                        
+                        <!-- Gaming Time Chart -->
+                        <TextBlock Text="📊 Daily Gaming Time" 
+                                  Style="{StaticResource TftHeader}"
+                                  FontSize="18"
+                                  Margin="0,20,0,10"/>
+                        <TextBlock Text="Track your gaming habits over time" 
+                                  Style="{StaticResource TftText}"
+                                  Foreground="#999999" 
+                                  Margin="0,0,0,10"/>
+                        <Border BorderBrush="{StaticResource TftGold}" 
+                               BorderThickness="2" 
+                               CornerRadius="8" 
+                               Background="{StaticResource TftMidBlue}"
+                               Height="300" 
+                               Margin="0,0,0,20">
+                            <TextBlock x:Name="ChartPlaceholder"
+                                      Text="Chart will be displayed here"
+                                      Style="{StaticResource TftText}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        
+                        <!-- Bottom padding -->
+                        <Border Height="20"/>
                     </StackPanel>
-                </Border>
-                
-                <!-- Settings Card -->
-                <Border Style="{StaticResource TftCard}">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource TftHeader}">Settings</TextBlock>
-                        <CheckBox x:Name="AutostartCheckBox" 
-                                  Foreground="{StaticResource TftTextWhite}"
-                                  Margin="0,10,0,10"
-                                  Checked="AutostartCheckBox_Checked"
-                                  Unchecked="AutostartCheckBox_Unchecked">
-                            <TextBlock Style="{StaticResource TftText}">
-                                Start automatically at login
-                            </TextBlock>
-                        </CheckBox>
-                        <TextBlock Style="{StaticResource TftText}" Margin="0,5">
-                            Data is stored in your AppData folder and uploaded hourly.
-                        </TextBlock>
-                    </StackPanel>
-                </Border>
-                
-                <!-- Test Card -->
-                <Border Style="{StaticResource TftCard}">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource TftHeader}">Testing</TextBlock>
-                        <TextBlock Style="{StaticResource TftText}" Margin="0,0,0,10">
-                            Test the Discord integration by sending a fake sleep session.
-                        </TextBlock>
-                        <Button x:Name="TestButton" 
-                                Click="TestButton_Click"
-                                Height="40"
-                                Background="{StaticResource TftAccentBlue}"
-                                BorderBrush="{StaticResource TftGold}"
-                                BorderThickness="2"
-                                Foreground="{StaticResource TftTextWhite}"
-                                FontSize="14"
-                                FontWeight="Bold"
-                                Cursor="Hand">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}"
-                                                        BorderBrush="{TemplateBinding BorderBrush}"
-                                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                                        CornerRadius="5">
-                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource TftGold}"/>
-                                            <Setter Property="Foreground" Value="{StaticResource TftDarkBlue}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                            🧪 Send Test Data to Discord
-                        </Button>
-                        <TextBlock x:Name="TestStatusText" 
-                                   Style="{StaticResource TftText}" 
-                                   Margin="0,10,0,0"
-                                   FontStyle="Italic"
-                                   Foreground="{StaticResource TftLightGold}"/>
-                    </StackPanel>
-                </Border>
-                
-            </StackPanel>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
     </Grid>
 </Window>

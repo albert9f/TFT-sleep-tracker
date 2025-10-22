@@ -1,5 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Dapper;
+using Microsoft.Data.Sqlite;
+using System.Diagnostics;
 
 namespace TFTSleepTracker.Core.Storage;
 
@@ -10,6 +13,7 @@ public class SummaryStore
 {
     private readonly string _dataDirectory;
     private readonly string _summaryFilePath;
+    private readonly string _connectionString;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -21,7 +25,13 @@ public class SummaryStore
     {
         _dataDirectory = dataDirectory ?? throw new ArgumentNullException(nameof(dataDirectory));
         _summaryFilePath = Path.Combine(_dataDirectory, "summary.json");
+        
         EnsureDataDirectoryExists();
+        
+        var dbPath = Path.Combine(_dataDirectory, "sleeptracker.db");
+        _connectionString = $"Data Source={dbPath}";
+        
+        InitializeDatabase();
     }
 
     /// <summary>
@@ -109,6 +119,143 @@ public class SummaryStore
         if (!Directory.Exists(_dataDirectory))
         {
             Directory.CreateDirectory(_dataDirectory);
+        }
+    }
+    
+    /// <summary>
+    /// Creates database tables if they don't exist
+    /// </summary>
+    private void InitializeDatabase()
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            
+            // Create ActivityDataPoints table
+            var createActivityTable = @"
+                CREATE TABLE IF NOT EXISTS ActivityDataPoints (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL,
+                    ActivityType TEXT NOT NULL,
+                    DurationMinutes INTEGER NOT NULL
+                )";
+            
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = createActivityTable;
+            cmd.ExecuteNonQuery();
+            
+            // Create indexes for performance
+            var createTimestampIndex = @"
+                CREATE INDEX IF NOT EXISTS idx_activity_timestamp 
+                ON ActivityDataPoints(Timestamp)";
+            
+            cmd.CommandText = createTimestampIndex;
+            cmd.ExecuteNonQuery();
+            
+            var createTypeIndex = @"
+                CREATE INDEX IF NOT EXISTS idx_activity_type 
+                ON ActivityDataPoints(ActivityType)";
+            
+            cmd.CommandText = createTypeIndex;
+            cmd.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error initializing database: {ex.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// Logs a single activity data point to the database
+    /// </summary>
+    public async Task LogActivityDataPointAsync(ActivityDataPoint dataPoint)
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            
+            var sql = @"
+                INSERT INTO ActivityDataPoints (Timestamp, ActivityType, DurationMinutes)
+                VALUES (@Timestamp, @ActivityType, @DurationMinutes)";
+            
+            await connection.ExecuteAsync(sql, new
+            {
+                Timestamp = dataPoint.Timestamp.ToString("o"), // ISO 8601 format
+                dataPoint.ActivityType,
+                dataPoint.DurationMinutes
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error logging activity data point: {ex.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// Retrieves activity data points within a date range
+    /// </summary>
+    public async Task<List<ActivityDataPoint>> GetActivityDataPointsAsync(DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            
+            var sql = @"
+                SELECT Id, Timestamp, ActivityType, DurationMinutes 
+                FROM ActivityDataPoints 
+                WHERE Timestamp BETWEEN @StartDate AND @EndDate 
+                ORDER BY Timestamp";
+            
+            var results = await connection.QueryAsync<dynamic>(sql, new
+            {
+                StartDate = startDate.ToString("o"),
+                EndDate = endDate.ToString("o")
+            });
+            
+            return results.Select(r => new ActivityDataPoint
+            {
+                Id = (int)r.Id,
+                Timestamp = DateTimeOffset.Parse((string)r.Timestamp),
+                ActivityType = (string)r.ActivityType,
+                DurationMinutes = (int)r.DurationMinutes
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error retrieving activity data points: {ex.Message}");
+            return new List<ActivityDataPoint>();
+        }
+    }
+    
+    /// <summary>
+    /// Gets aggregated gaming time by game type
+    /// </summary>
+    public async Task<Dictionary<string, int>> GetGameTimeSummaryAsync(DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            
+            var sql = @"
+                SELECT ActivityType, SUM(DurationMinutes) as TotalMinutes 
+                FROM ActivityDataPoints 
+                WHERE Timestamp BETWEEN @StartDate AND @EndDate 
+                AND ActivityType IN ('TFT', 'Fortnite', 'Roblox') 
+                GROUP BY ActivityType";
+            
+            var results = await connection.QueryAsync<(string ActivityType, int TotalMinutes)>(sql, new
+            {
+                StartDate = startDate.ToString("o"),
+                EndDate = endDate.ToString("o")
+            });
+            
+            return results.ToDictionary(r => r.ActivityType, r => r.TotalMinutes);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error retrieving game time summary: {ex.Message}");
+            return new Dictionary<string, int>();
         }
     }
 }
