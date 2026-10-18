@@ -216,7 +216,7 @@ public class SummaryStore
             return results.Select(r => new ActivityDataPoint
             {
                 Id = (int)r.Id,
-                Timestamp = DateTimeOffset.Parse((string)r.Timestamp),
+                Timestamp = DateTimeOffset.ParseExact((string)r.Timestamp, "o", System.Globalization.CultureInfo.InvariantCulture),
                 ActivityType = (string)r.ActivityType,
                 DurationMinutes = (int)r.DurationMinutes
             }).ToList();

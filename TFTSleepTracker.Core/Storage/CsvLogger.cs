@@ -82,7 +82,7 @@ public class CsvLogger
             {
                 dataPoints.Add(new ActivityDataPoint
                 {
-                    Timestamp = DateTimeOffset.Parse(parts[0], CultureInfo.InvariantCulture),
+                    Timestamp = DateTimeOffset.ParseExact(parts[0], "o", CultureInfo.InvariantCulture),
                     IsActive = bool.Parse(parts[1]),
                     InactivityMinutes = double.Parse(parts[2], CultureInfo.InvariantCulture),
                     SleepMinutesIncrement = int.Parse(parts[3], CultureInfo.InvariantCulture)
